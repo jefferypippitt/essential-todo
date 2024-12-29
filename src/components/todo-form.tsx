@@ -93,13 +93,15 @@ export function TodoForm({ className, allTodos }: TodoFormProps) {
             </div>
             <div className="relative mb-4 mt-4">
               <ScrollArea className="h-[100px] w-full rounded-md border">
-                <Textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Add a description..."
-                  disabled={pending}
-                  className="min-h-[100px] resize-none border-0 focus-visible:ring-0"
-                />
+                <div className="p-4">
+                  <Textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Add a description..."
+                    disabled={pending}
+                    className="min-h-[100px] h-auto resize-none border-0 focus-visible:ring-0 overflow-hidden"
+                  />
+                </div>
               </ScrollArea>
             </div>
             <div className="flex justify-center mt-6 gap-2">
@@ -109,15 +111,14 @@ export function TodoForm({ className, allTodos }: TodoFormProps) {
                 variant="default"
                 className="gap-2"
               >
-                <PlusCircle />
+                <PlusCircle className="h-4 w-4" />
                 Add Todo
               </Button>
               <Button
                 type="button"
                 onClick={handleSavedClick}
                 disabled={pending}
-                variant={showSaved ? "default" : "secondary"}
-                className="gap-2"
+                variant={showSaved ? "default" : "outline"}
               >
                 Saved
                 <ChevronDown
