@@ -19,29 +19,31 @@ export async function addTodo(prevState: unknown, formData: FormData) {
   }
 }
 
-export async function toggleTodo(formData: FormData) {
+export async function toggleTodo(id: number) {
   try {
-    const id = Number(formData.get("id"));
-    const completed = formData.get("completed") === "true";
+    const todo = await db.query.todos.findFirst({
+      where: eq(todos.id, id),
+    });
+
+    if (!todo) throw new Error("Todo not found");
 
     await db
       .update(todos)
-      .set({ completed: completed })
+      .set({ completed: !todo.completed })
       .where(eq(todos.id, id));
 
     revalidatePath("/");
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
     throw new Error("Failed to toggle todo");
   }
 }
 
-export async function deleteTodo(formData: FormData) {
+export async function deleteTodo(id: number) {
   try {
-    const id = Number(formData.get("id"));
     await db.delete(todos).where(eq(todos.id, id));
     revalidatePath("/");
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
     throw new Error("Failed to delete todo");
   }
@@ -61,5 +63,23 @@ export async function updateTodo(formData: FormData) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
     return { message: "Failed to update todo" };
+  }
+}
+
+export async function createTodo(data: {
+  title: string;
+  description?: string;
+}) {
+  try {
+    await db.insert(todos).values({
+      title: data.title,
+      description: data.description || null,
+      completed: false,
+    });
+
+    revalidatePath('/');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (error) {
+    throw new Error("Failed to create todo");
   }
 }

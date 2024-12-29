@@ -1,23 +1,30 @@
-import { MaxWidthWrapper } from "@/components/max-width-wrapper";
-
-import TodoItem from "@/components/todo-item";
-import AddTodoForm from "@/components/todo-form";
+import { TodoForm } from "@/components/todo-form";
+import { TodosDisplay } from "@/components/todos-display";
 import { todos } from "@/db/schema";
 import { db } from "@/db";
 
 export default async function Home() {
   const allTodos = await db.select().from(todos).orderBy(todos.createdAt);
+
   return (
-    <MaxWidthWrapper>
-      <div className="flex flex-col gap-4">
-        <h1 className="text-2xl font-bold">🪴 Essential To-Do</h1>
-        <AddTodoForm />
-        <ul className="flex flex-col gap-2">
-          {allTodos.map((todo) => (
-            <TodoItem key={todo.id} todo={todo} />
-          ))}
-        </ul>
+    <div className="container mx-auto max-w-3xl px-4">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="scroll-m-20 text-xl font-bold tracking-tight lg:text-3xl">
+            🪴 Essential To-Do
+          </h1>
+        </div>
+
+        <TodoForm allTodos={allTodos} />
+
+        {allTodos.length > 0 ? (
+          <TodosDisplay allTodos={allTodos} showSaved={false} />
+        ) : (
+          <div className="text-center text-muted-foreground py-8">
+            No tasks yet. Create one above!
+          </div>
+        )}
       </div>
-    </MaxWidthWrapper>
+    </div>
   );
 }

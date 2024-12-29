@@ -1,76 +1,137 @@
 "use client";
 
-import { toast } from "sonner";
-import { useActionState, useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { createTodo } from "@/app/action";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { addTodo } from "@/app/action";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { PlusIcon, ChevronDown, PlusCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { NewTodoSchema } from "@/db/schema";
+import { z } from "zod";
+import type { todos } from "@/db/schema";
+import { TodosDisplay } from "./todos-display";
+import { toast } from "sonner";
 
-const initialState = {
-  message: "",
-};
+type Todo = typeof todos.$inferSelect;
 
-function SubmitButton({ pending }: { pending: boolean }) {
-  return (
-    <Button type="submit" disabled={pending}>
-      {pending ? "Adding..." : "Add Todo"}
-    </Button>
-  );
+interface TodoFormProps extends React.ComponentProps<typeof Card> {
+  allTodos: Todo[];
 }
 
-export default function NewTodoForm() {
-  const [validationError, setValidationError] = useState({ title: "" });
-  const [state, dispatch, pending] = useActionState(addTodo, initialState);
+export function TodoForm({ className, allTodos }: TodoFormProps) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const [showSaved, setShowSaved] = useState(false);
 
-  useEffect(() => {
-    if (state?.message) {
-      if (state.message === "Todo added") {
-        toast.success(state.message);
-        // Clear the input after successful addition
-        const form = document.querySelector("form") as HTMLFormElement;
-        if (form) form.reset();
+  const validateAndSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setError(null);
+
+    try {
+      const newTodo = NewTodoSchema.parse({
+        title: title.trim(),
+        description: description.trim(),
+      });
+
+      setPending(true);
+      await createTodo(newTodo);
+
+      setTitle("");
+      setDescription("");
+      toast.success("Todo created successfully");
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        setError(error.errors[0].message);
       } else {
-        toast.error(state.message);
+        toast.error("Failed to create todo");
       }
+    } finally {
+      setPending(false);
     }
-  }, [state]);
-
-  const formAction = async (formData: FormData) => {
-    await dispatch(formData);
   };
 
-  function validate(event: React.ChangeEvent<HTMLInputElement>) {
-    const { name, value } = event.target;
-    if (name === "title") {
-      if (!value.trim()) {
-        setValidationError({ title: "Title is required" });
-      } else if (value.length > 100) {
-        setValidationError({ title: "Title is too long" });
-      } else {
-        setValidationError({ title: "" });
-      }
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      validateAndSubmit();
     }
-  }
+  };
+
+  const handleSavedClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setShowSaved((prev) => !prev);
+  };
 
   return (
-    <form action={formAction}>
-      <div className="mt-12 flex gap-3">
-        <div className="w-full">
-          <Input
-            type="text"
-            name="title"
-            placeholder="Enter a todo"
-            onChange={validate}
-            required
-          />
-          {validationError.title && (
-            <p className="ml-1 mt-2 text-sm text-red-500">
-              {validationError.title}
-            </p>
-          )}
-        </div>
-        <SubmitButton pending={pending} />
-      </div>
-    </form>
+    <>
+      <Card className={cn("w-full", className)}>
+        <form onSubmit={validateAndSubmit}>
+          <CardContent className="pt-6">
+            <div className="space-y-2">
+              <div className="flex gap-4">
+                <PlusIcon className="w-4 h-4 mt-3 text-muted-foreground" />
+                <Input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Enter tasks, ideas, notes, etc."
+                  disabled={pending}
+                  className={cn(
+                    "flex-1",
+                    error && "border-destructive focus-visible:ring-destructive"
+                  )}
+                />
+              </div>
+              {error && (
+                <p className="text-sm text-destructive px-12">{error}</p>
+              )}
+            </div>
+            <div className="relative mb-4 mt-4">
+              <ScrollArea className="h-[100px] w-full rounded-md border">
+                <Textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Add a description..."
+                  disabled={pending}
+                  className="min-h-[100px] resize-none border-0 focus-visible:ring-0"
+                />
+              </ScrollArea>
+            </div>
+            <div className="flex justify-center mt-6 gap-2">
+              <Button
+                type="submit"
+                disabled={pending}
+                variant="default"
+                className="gap-2"
+              >
+                <PlusCircle />
+                Add Todo
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSavedClick}
+                disabled={pending}
+                variant={showSaved ? "default" : "secondary"}
+                className="gap-2"
+              >
+                Saved
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 transition-transform duration-200",
+                    showSaved && "rotate-180"
+                  )}
+                />
+              </Button>
+            </div>
+          </CardContent>
+        </form>
+      </Card>
+      <TodosDisplay allTodos={allTodos} showSaved={showSaved} />
+    </>
   );
 }
