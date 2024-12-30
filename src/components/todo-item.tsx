@@ -1,73 +1,158 @@
 "use client";
 
-import { deleteTodo, toggleTodo } from "@/app/action";
+import { Pencil, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { deleteTodo, toggleTodo, updateTodo } from "@/app/action";
+import { Input } from "./ui/input";
 import { toast } from "sonner";
-import type { todos } from "@/db/schema";
-import { Checkbox } from "./ui/checkbox";
 import { Button } from "./ui/button";
-import { Trash2Icon } from "lucide-react";
+import { Checkbox } from "./ui/checkbox";
+import { Textarea } from "./ui/textarea";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import { Label } from "./ui/label";
 
-type Todo = typeof todos.$inferSelect;
+export function TodoItem({
+  id,
+  title,
+  completed,
+  description,
+}: {
+  id: number;
+  title: string;
+  completed: boolean | null;
+  description: string | null;
+}) {
+  const [editedTitle, setEditedTitle] = useState(title);
+  const [editedDescription, setEditedDescription] = useState(description || "");
+  const [isOpen, setIsOpen] = useState(false);
 
-interface TodoItemProps {
-  todo: Todo;
-}
-
-export function TodoItem({ todo }: TodoItemProps) {
-  const handleToggle = async () => {
+  async function handleToggle() {
     try {
-      await toggleTodo(todo.id);
-      toast.success(todo.completed ? "Todo uncompleted" : "Todo completed");
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      await toggleTodo(id);
+      toast.success(completed ? "Todo uncompleted" : "Todo completed");
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
-      toast.error("Failed to toggle todo");
+      toast.error("Failed to update todo status");
     }
-  };
+  }
 
-  const handleDelete = async () => {
+  async function handleUpdate(e: React.FormEvent) {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append("id", id.toString());
+    formData.append("title", editedTitle);
+    formData.append("description", editedDescription);
+
+    const result = await updateTodo(formData);
+    if (result.message === "Success") {
+      toast.success("Todo updated successfully");
+      setIsOpen(false);
+    } else {
+      toast.error("Failed to update todo");
+    }
+  }
+
+  async function handleDelete() {
     try {
-      await deleteTodo(todo.id);
-      toast.success("Todo deleted");
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      await deleteTodo(id);
+      toast.success("Todo deleted successfully");
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error("Failed to delete todo");
     }
-  };
+  }
 
   return (
-    <div className="group py-3 hover:bg-muted/50 rounded-lg transition-colors">
-      <div className="px-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
+    <div className="flex items-center justify-between gap-2 p-4">
+      <div className="flex-1">
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
             <Checkbox
-              id={`todo-${todo.id}`}
-              checked={todo.completed ?? false}
+              checked={completed ?? false}
               onCheckedChange={handleToggle}
             />
-            <Label
-              htmlFor={`todo-${todo.id}`}
-              className={`font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${
-                todo.completed ? "line-through text-muted-foreground" : ""
-              }`}
-            >
-              {todo.title}
-            </Label>
+            <span className={completed ? "line-through text-gray-500" : ""}>
+              {title}
+            </span>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleDelete}
-            className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
-          >
-            <Trash2Icon className="h-4 w-4" />
-          </Button>
+          {description && (
+            <span className="text-sm text-muted-foreground pl-6">
+              {description}
+            </span>
+          )}
         </div>
-        {todo.description && (
-          <p className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap pl-6">
-            {todo.description}
-          </p>
-        )}
+      </div>
+      <div className="flex gap-2">
+        <Drawer open={isOpen} onOpenChange={setIsOpen}>
+          <DrawerTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+            >
+              <Pencil className="h-4 w-4 text-green-500" />
+            </Button>
+          </DrawerTrigger>
+          <DrawerContent>
+            <div className="mx-auto w-full max-w-xl">
+              <DrawerHeader>
+                <DrawerTitle>Edit Todo</DrawerTitle>
+                <DrawerDescription>
+                  Make changes to your todo item here.
+                </DrawerDescription>
+              </DrawerHeader>
+              <form onSubmit={handleUpdate}>
+                <div className="p-4 pb-0">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="title">Title</Label>
+                      <Input
+                        id="title"
+                        value={editedTitle}
+                        onChange={(e) => setEditedTitle(e.target.value)}
+                        placeholder="Enter todo title"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="description">Description</Label>
+                      <Textarea
+                        id="description"
+                        value={editedDescription}
+                        onChange={(e) => setEditedDescription(e.target.value)}
+                        placeholder="Enter todo description"
+                        className="min-h-[100px]"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <DrawerFooter>
+                  <Button type="submit">Save changes</Button>
+                  <DrawerClose asChild>
+                    <Button variant="outline" type="button">
+                      Cancel
+                    </Button>
+                  </DrawerClose>
+                </DrawerFooter>
+              </form>
+            </div>
+          </DrawerContent>
+        </Drawer>
+        <Button
+          onClick={handleDelete}
+          variant="ghost"
+          size="icon"
+          className="text-destructive hover:text-destructive"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );

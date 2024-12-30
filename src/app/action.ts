@@ -43,9 +43,10 @@ export async function deleteTodo(id: number) {
   try {
     await db.delete(todos).where(eq(todos.id, id));
     revalidatePath("/");
+    return { success: true };
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
-    throw new Error("Failed to delete todo");
+    return { success: false };
   }
 }
 
@@ -53,14 +54,18 @@ export async function updateTodo(formData: FormData) {
   try {
     const id = Number(formData.get("id"));
     const title = formData.get("title") as string;
+    const description = formData.get("description") as string;
 
     if (!title) throw new Error("Title is required");
 
-    await db.update(todos).set({ title }).where(eq(todos.id, id));
+    await db.update(todos).set({ 
+      title,
+      description: description || null 
+    }).where(eq(todos.id, id));
 
     revalidatePath("/");
     return { message: "Success" };
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
     return { message: "Failed to update todo" };
   }

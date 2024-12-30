@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlusIcon, ChevronDown, PlusCircle } from "lucide-react";
+import { PlusIcon, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NewTodoSchema } from "@/db/schema";
 import { z } from "zod";
@@ -108,10 +108,8 @@ export function TodoForm({ className, allTodos }: TodoFormProps) {
               <Button
                 type="submit"
                 disabled={pending}
-                variant="default"
                 className="gap-2"
               >
-                <PlusCircle className="h-4 w-4" />
                 Add Todo
               </Button>
               <Button

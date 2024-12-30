@@ -20,7 +20,7 @@ export function TodosDisplay({ allTodos, showSaved }: TodosDisplayProps) {
         <div className="pr-4 h-full">
           <ul className="grid gap-2">
             {allTodos.map((todo) => (
-              <TodoItem key={todo.id} todo={todo} />
+              <TodoItem key={todo.id} {...todo} />
             ))}
           </ul>
         </div>
