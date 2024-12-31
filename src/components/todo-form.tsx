@@ -1,19 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { createTodo } from "@/app/action";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlusIcon, ChevronDown } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NewTodoSchema } from "@/db/schema";
 import { z } from "zod";
 import type { todos } from "@/db/schema";
 import { TodosDisplay } from "./todos-display";
 import { toast } from "sonner";
+import { createTodo } from "@/app/action";
 
 type Todo = typeof todos.$inferSelect;
 
@@ -26,24 +26,33 @@ export function TodoForm({ className, allTodos }: TodoFormProps) {
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [showSaved, setShowSaved] = useState(false);
 
   const validateAndSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setError(null);
 
     try {
-      const newTodo = NewTodoSchema.parse({
+      NewTodoSchema.parse({
         title: title.trim(),
         description: description.trim(),
       });
 
       setPending(true);
-      await createTodo(newTodo);
+      const formData = new FormData();
+      formData.append("title", title.trim());
+      if (description.trim()) {
+        formData.append("description", description.trim());
+      }
 
-      setTitle("");
-      setDescription("");
-      toast.success("Todo created successfully");
+      const result = await createTodo({}, formData);
+
+      if (result.message === "Todo added") {
+        setTitle("");
+        setDescription("");
+        toast.success("Todo created successfully");
+      } else {
+        toast.error("Failed to create todo");
+      }
     } catch (error) {
       if (error instanceof z.ZodError) {
         setError(error.errors[0].message);
@@ -60,11 +69,6 @@ export function TodoForm({ className, allTodos }: TodoFormProps) {
       e.preventDefault();
       validateAndSubmit();
     }
-  };
-
-  const handleSavedClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setShowSaved((prev) => !prev);
   };
 
   return (
@@ -104,33 +108,16 @@ export function TodoForm({ className, allTodos }: TodoFormProps) {
                 </div>
               </ScrollArea>
             </div>
-            <div className="flex justify-center mt-6 gap-2">
-              <Button
-                type="submit"
-                disabled={pending}
-                className="gap-2"
-              >
-                Add Todo
-              </Button>
-              <Button
-                type="button"
-                onClick={handleSavedClick}
-                disabled={pending}
-                variant={showSaved ? "default" : "outline"}
-              >
-                Saved
-                <ChevronDown
-                  className={cn(
-                    "h-4 w-4 transition-transform duration-200",
-                    showSaved && "rotate-180"
-                  )}
-                />
-              </Button>
-            </div>
           </CardContent>
         </form>
+
+        <div className="flex justify-center items-center gap-4 pb-6">
+          <Button onClick={validateAndSubmit} disabled={pending}>
+            Add Todo
+          </Button>
+          <TodosDisplay allTodos={allTodos} />
+        </div>
       </Card>
-      <TodosDisplay allTodos={allTodos} showSaved={showSaved} />
     </>
   );
 }

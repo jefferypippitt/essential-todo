@@ -1,4 +1,11 @@
-import { pgTable, serial, text, boolean, timestamp } from "drizzle-orm/pg-core";
+import {
+  integer,
+  pgTable,
+  serial,
+  text,
+  boolean,
+  timestamp,
+} from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 export const todos = pgTable("todos", {
@@ -7,6 +14,7 @@ export const todos = pgTable("todos", {
   description: text("description"),
   completed: boolean("completed").default(false),
   createdAt: timestamp("created_at").defaultNow(),
+  order: integer("order").notNull().default(0),
 });
 
 export const NewTodoSchema = z.object({

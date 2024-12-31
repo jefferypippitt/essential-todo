@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, GripVertical } from "lucide-react";
 import { useState } from "react";
 import { deleteTodo, toggleTodo, updateTodo } from "@/app/action";
 import { Input } from "./ui/input";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Textarea } from "./ui/textarea";
+import { format } from "date-fns";
 import {
   Drawer,
   DrawerClose,
@@ -19,29 +20,60 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { Label } from "./ui/label";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+type TodoItemProps = {
+  id: number;
+  title: string;
+  completed: boolean | null;
+  description: string | null;
+  createdAt: Date | null;
+};
 
 export function TodoItem({
   id,
   title,
   completed,
   description,
-}: {
-  id: number;
-  title: string;
-  completed: boolean | null;
-  description: string | null;
-}) {
+  createdAt,
+}: TodoItemProps) {
   const [editedTitle, setEditedTitle] = useState(title);
   const [editedDescription, setEditedDescription] = useState(description || "");
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: id,
+    disabled: isLoading,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
 
   async function handleToggle() {
+    if (isLoading) return;
+    setIsLoading(true);
     try {
-      await toggleTodo(id);
-      toast.success(completed ? "Todo uncompleted" : "Todo completed");
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const result = await toggleTodo(id);
+      if (result?.success) {
+        toast.success(completed ? "Todo uncompleted" : "Todo completed");
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error("Failed to update todo status");
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -62,27 +94,52 @@ export function TodoItem({
   }
 
   async function handleDelete() {
+    if (isLoading) return;
+    setIsLoading(true);
     try {
-      await deleteTodo(id);
-      toast.success("Todo deleted successfully");
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const result = await deleteTodo(id);
+      if (result.success) {
+        toast.success("Todo deleted successfully");
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error("Failed to delete todo");
+    } finally {
+      setIsLoading(false);
     }
   }
 
   return (
-    <div className="flex items-center justify-between gap-2 p-4">
+    <li
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 p-4 rounded-lg shadow"
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-100 rounded"
+      >
+        <GripVertical className="h-4 w-4 text-gray-400" />
+      </div>
       <div className="flex-1">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-2">
             <Checkbox
               checked={completed ?? false}
               onCheckedChange={handleToggle}
+              disabled={isLoading}
             />
-            <span className={completed ? "line-through text-gray-500" : ""}>
-              {title}
-            </span>
+            <div className="flex flex-col">
+              <span className={completed ? "line-through text-gray-500" : ""}>
+                {title}
+              </span>
+              {createdAt && (
+                <span className="text-xs text-muted-foreground">
+                  Created {format(new Date(createdAt), "MMM d, yyyy")}
+                </span>
+              )}
+            </div>
           </div>
           {description && (
             <span className="text-sm text-muted-foreground pl-6">
@@ -94,10 +151,7 @@ export function TodoItem({
       <div className="flex gap-2">
         <Drawer open={isOpen} onOpenChange={setIsOpen}>
           <DrawerTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-            >
+            <Button variant="ghost" size="icon" disabled={isLoading}>
               <Pencil className="h-4 w-4 text-green-500" />
             </Button>
           </DrawerTrigger>
@@ -149,11 +203,12 @@ export function TodoItem({
           onClick={handleDelete}
           variant="ghost"
           size="icon"
+          disabled={isLoading}
           className="text-destructive hover:text-destructive"
         >
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>
-    </div>
+    </li>
   );
 }
