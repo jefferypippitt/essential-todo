@@ -124,7 +124,7 @@ export function TodoItem({
       <div
         {...attributes}
         {...listeners}
-        className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-100 rounded"
+        className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
       >
         <GripVertical className="h-4 w-4 text-gray-400" />
       </div>
@@ -148,7 +148,7 @@ export function TodoItem({
             </div>
           </div>
           {description && (
-            <span className="text-sm text-muted-foreground pl-6">
+            <span className="text-sm text-muted-foreground pl-6 line-clamp-2">
               {description}
             </span>
           )}
@@ -190,7 +190,7 @@ export function TodoItem({
                         name="description"
                         defaultValue={description || ""}
                         placeholder="Enter todo description"
-                        className="min-h-[100px]"
+                        className="min-h-[200px]"
                       />
                     </div>
                   </div>

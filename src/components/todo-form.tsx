@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PlusIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { todos } from "@/db/schema";
 import { TodosDisplay } from "./todos-display";
 import { toast } from "sonner";
@@ -32,7 +31,7 @@ function SubmitButton() {
   );
 }
 
-export function TodoForm({ className, allTodos }: TodoFormProps) {
+export function TodoForm({ allTodos }: TodoFormProps) {
   const [state, formAction] = useActionState(createTodo, { message: "" });
 
   useEffect(() => {
@@ -52,49 +51,43 @@ export function TodoForm({ className, allTodos }: TodoFormProps) {
   };
 
   return (
-    <>
-      <Card className={cn("w-full", className)}>
-        <div className="relative">
-          <form action={formAction}>
-            <CardContent className="pt-6">
-              <div className="space-y-2">
-                <div className="flex gap-4">
-                  <PlusIcon className="w-4 h-4 mt-3 text-muted-foreground" />
-                  <Input
-                    name="title"
-                    onKeyDown={handleKeyDown}
-                    placeholder="Enter tasks, ideas, notes, etc."
-                    className="flex-1"
-                  />
-                </div>
-                {state.message && state.message !== "Todo added" && (
-                  <p className="text-sm text-destructive px-12">
-                    {state.message}
-                  </p>
-                )}
-              </div>
-              <div className="relative mb-4 mt-4">
-                <ScrollArea className="h-[100px] w-full rounded-md border">
-                  <div className="p-4">
-                    <Textarea
-                      name="description"
-                      placeholder="Add a description..."
-                      className="min-h-[100px] h-auto resize-none border-0 focus-visible:ring-0 overflow-hidden"
-                    />
-                  </div>
-                </ScrollArea>
-              </div>
-            </CardContent>
-
-            <div className="flex justify-center items-center gap-4 pb-6">
-              <SubmitButton />
-              <div onClick={(e) => e.preventDefault()}>
-                <TodosDisplay allTodos={allTodos} />
-              </div>
+    <Card>
+      <form action={formAction}>
+        <CardContent className="pt-6">
+          <div className="space-y-2">
+            <div className="flex gap-4">
+              <PlusIcon className="w-4 h-4 mt-3 text-muted-foreground" />
+              <Input
+                name="title"
+                onKeyDown={handleKeyDown}
+                placeholder="Enter tasks, ideas, notes, etc."
+                className="flex-1"
+              />
             </div>
-          </form>
+            {state.message && state.message !== "Todo added" && (
+              <p className="text-sm text-destructive px-12">{state.message}</p>
+            )}
+          </div>
+          <div className="relative mb-4 mt-4">
+            <ScrollArea className="h-[100px] w-full rounded-md border">
+              <div className="p-4">
+                <Textarea
+                  name="description"
+                  placeholder="Add a description..."
+                  className="min-h-[100px] h-auto resize-none border-0 focus-visible:ring-0 overflow-hidden"
+                />
+              </div>
+            </ScrollArea>
+          </div>
+        </CardContent>
+
+        <div className="flex justify-center items-center gap-4 pb-6">
+          <SubmitButton />
+          <div onClick={(e) => e.preventDefault()}>
+            <TodosDisplay allTodos={allTodos} />
+          </div>
         </div>
-      </Card>
-    </>
+      </form>
+    </Card>
   );
 }

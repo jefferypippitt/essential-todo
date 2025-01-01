@@ -49,7 +49,7 @@ export function TodosDisplay({ allTodos }: TodosDisplayProps) {
           )}
         />
       </Button>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl">
         <DialogHeader className="flex justify-center items-center">
           <DialogTitle>Saved Todos</DialogTitle>
         </DialogHeader>
