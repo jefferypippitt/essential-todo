@@ -1,7 +1,7 @@
 "use client";
 
 import { Pencil, Trash2, GripVertical } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { deleteTodo, toggleTodo, updateTodo } from "@/app/action";
 import { Input } from "./ui/input";
 import { toast } from "sonner";
@@ -38,10 +38,9 @@ export function TodoItem({
   description,
   createdAt,
 }: TodoItemProps) {
-  const [editedTitle, setEditedTitle] = useState(title);
-  const [editedDescription, setEditedDescription] = useState(description || "");
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const form = useRef<HTMLFormElement>(null);
 
   const {
     attributes,
@@ -61,6 +60,25 @@ export function TodoItem({
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+
+    try {
+      setIsLoading(true);
+      await updateTodo({ message: "" }, formData);
+      toast.success("Todo updated successfully");
+      setIsOpen(false);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update todo"
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   async function handleToggle() {
     if (isLoading) return;
     setIsLoading(true);
@@ -68,28 +86,14 @@ export function TodoItem({
       const result = await toggleTodo(id);
       if (result?.success) {
         toast.success(completed ? "Todo uncompleted" : "Todo completed");
+      } else {
+        toast.error(result?.error || "Failed to update todo status");
       }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error("Failed to update todo status");
+      console.error("Toggle error:", error);
     } finally {
       setIsLoading(false);
-    }
-  }
-
-  async function handleUpdate(e: React.FormEvent) {
-    e.preventDefault();
-    const formData = new FormData();
-    formData.append("id", id.toString());
-    formData.append("title", editedTitle);
-    formData.append("description", editedDescription);
-
-    const result = await updateTodo(formData);
-    if (result.message === "Success") {
-      toast.success("Todo updated successfully");
-      setIsOpen(false);
-    } else {
-      toast.error("Failed to update todo");
     }
   }
 
@@ -100,10 +104,12 @@ export function TodoItem({
       const result = await deleteTodo(id);
       if (result.success) {
         toast.success("Todo deleted successfully");
+      } else {
+        toast.error(result.error || "Failed to delete todo");
       }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error("Failed to delete todo");
+      console.error("Delete error:", error);
     } finally {
       setIsLoading(false);
     }
@@ -157,30 +163,32 @@ export function TodoItem({
           </DrawerTrigger>
           <DrawerContent>
             <div className="mx-auto w-full max-w-xl">
-              <DrawerHeader>
-                <DrawerTitle>Edit Todo</DrawerTitle>
-                <DrawerDescription>
-                  Make changes to your todo item here.
-                </DrawerDescription>
-              </DrawerHeader>
-              <form onSubmit={handleUpdate}>
-                <div className="p-4 pb-0">
+              <form ref={form} onSubmit={handleSubmit} className="space-y-6">
+                <DrawerHeader>
+                  <DrawerTitle>Edit Todo</DrawerTitle>
+                  <DrawerDescription>
+                    Make changes to your todo item here.
+                  </DrawerDescription>
+                </DrawerHeader>
+                <div className="px-4">
+                  <input type="hidden" name="id" value={id} />
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="title">Title</Label>
                       <Input
                         id="title"
-                        value={editedTitle}
-                        onChange={(e) => setEditedTitle(e.target.value)}
+                        name="title"
+                        defaultValue={title}
                         placeholder="Enter todo title"
+                        required
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="description">Description</Label>
                       <Textarea
                         id="description"
-                        value={editedDescription}
-                        onChange={(e) => setEditedDescription(e.target.value)}
+                        name="description"
+                        defaultValue={description || ""}
                         placeholder="Enter todo description"
                         className="min-h-[100px]"
                       />
@@ -188,12 +196,28 @@ export function TodoItem({
                   </div>
                 </div>
                 <DrawerFooter>
-                  <Button type="submit">Save changes</Button>
-                  <DrawerClose asChild>
-                    <Button variant="outline" type="button">
-                      Cancel
+                  <div className="flex flex-col gap-2 w-full">
+                    <Button
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        form.current?.requestSubmit();
+                      }}
+                    >
+                      {isLoading ? "Saving..." : "Save changes"}
                     </Button>
-                  </DrawerClose>
+                    <DrawerClose asChild>
+                      <Button
+                        variant="outline"
+                        type="button"
+                        className="w-full"
+                      >
+                        Cancel
+                      </Button>
+                    </DrawerClose>
+                  </div>
                 </DrawerFooter>
               </form>
             </div>

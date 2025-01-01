@@ -1,27 +1,47 @@
 "use server";
 
 import { db } from "@/db";
-import { todos } from "@/db/schema";    
+import { todos } from "@/db/schema";
 import { revalidatePath } from "next/cache";
 import { eq, sql, and, gte, lt, gt, lte } from "drizzle-orm";
+import { NewTodoSchema } from "@/db/schema";
 
-export async function createTodo(prevState: unknown, formData: FormData) {
+// Export the state type
+export type TodoFormState = {
+  message: string;
+};
+
+export async function createTodo(
+  prevState: { message: string },
+  formData: FormData
+): Promise<TodoFormState> {
   try {
     const title = formData.get("title") as string;
     const description = formData.get("description") as string;
-    if (!title) throw new Error("Title is required");
+
+    // Validate with Zod schema
+    const validated = NewTodoSchema.safeParse({
+      title: title?.trim(),
+      description: description?.trim(),
+    });
+
+    if (!validated.success) {
+      return { message: validated.error.errors[0].message };
+    }
 
     // Get the current maximum order
-    const result = await db.select({
-      maxOrder: sql<number>`COALESCE(MAX(${todos.order}), 0)`
-    }).from(todos);
+    const result = await db
+      .select({
+        maxOrder: sql<number>`COALESCE(MAX(${todos.order}), 0)`,
+      })
+      .from(todos);
     const newOrder = (result[0]?.maxOrder ?? 0) + 1;
 
-    await db.insert(todos).values({ 
-      title,
-      description: description || null,
+    await db.insert(todos).values({
+      title: validated.data.title,
+      description: validated.data.description || null,
       order: newOrder,
-      completed: false
+      completed: false,
     });
 
     revalidatePath("/");
@@ -40,25 +60,25 @@ export async function toggleTodo(id: number) {
       where: eq(todos.id, id),
       columns: {
         completed: true,
-        order: true
-      }
+        order: true,
+      },
     });
 
     if (!todo) throw new Error("Todo not found");
 
     await db
       .update(todos)
-      .set({ 
+      .set({
         completed: !todo.completed,
-        order: todo.order // Explicitly preserve the order
+        order: todo.order, // Explicitly preserve the order
       })
       .where(eq(todos.id, id));
 
     revalidatePath("/");
-    return { 
-      success: true, 
+    return {
+      success: true,
       completed: !todo.completed,
-      order: todo.order
+      order: todo.order,
     };
   } catch (error: unknown) {
     if (error instanceof Error) {
@@ -94,45 +114,66 @@ export async function deleteTodo(id: number) {
   }
 }
 
-export async function updateTodo(formData: FormData) {
+export async function updateTodo(
+  state: { message: string },
+  formData: FormData
+) {
   try {
-    const id = Number(formData.get("id"));
-    const title = formData.get("title") as string;
-    const description = formData.get("description") as string;
+    const id = formData.get("id");
+    const title = formData.get("title");
+    const description = formData.get("description");
 
-    if (!title) throw new Error("Title is required");
+    if (!id || !title) {
+      throw new Error("Missing required fields");
+    }
 
-    const currentTodo = await db.query.todos.findFirst({
-      where: eq(todos.id, id),
+    // Validate the input
+    const validated = NewTodoSchema.safeParse({
+      title: title.toString().trim(),
+      description: description?.toString().trim(),
     });
 
-    if (!currentTodo) throw new Error("Todo not found");
+    if (!validated.success) {
+      throw new Error(validated.error.errors[0].message);
+    }
 
-    await db.update(todos).set({ 
-      title,
-      description: description || null,
-      order: currentTodo.order
-    }).where(eq(todos.id, id));
+    const currentTodo = await db.query.todos.findFirst({
+      where: eq(todos.id, Number(id)),
+    });
+
+    if (!currentTodo) {
+      throw new Error("Todo not found");
+    }
+
+    await db
+      .update(todos)
+      .set({
+        title: validated.data.title,
+        description: validated.data.description || null,
+        order: currentTodo.order,
+      })
+      .where(eq(todos.id, Number(id)));
 
     revalidatePath("/");
-    return { message: "Success", order: currentTodo.order };
-  } catch (error: unknown) {
+
+    return { success: true };
+  } catch (error) {
     if (error instanceof Error) {
-      return { message: error.message };
+      throw new Error(error.message);
     }
-    return { message: "Failed to update todo" };
+    throw new Error("Failed to update todo");
   }
 }
 
 export async function reorderTodos(activeId: number, overId: number) {
   try {
     const allTodos = await db.query.todos.findMany({
-      orderBy: (todos, { asc }) => [asc(todos.order)]
+      orderBy: (todos, { asc }) => [asc(todos.order)],
     });
-    
-    const activeItem = allTodos.find(todo => todo.id === activeId);
-    const overItem = allTodos.find(todo => todo.id === overId);
-    
+
+    const activeItem = allTodos.find((todo) => todo.id === activeId);
+    const overItem = allTodos.find((todo) => todo.id === overId);
+
     if (!activeItem || !overItem) {
       return { success: false, error: "Todo items not found" };
     }
@@ -146,23 +187,13 @@ export async function reorderTodos(activeId: number, overId: number) {
       await db
         .update(todos)
         .set({ order: sql`${todos.order} - 1` })
-        .where(
-          and(
-            gt(todos.order, oldOrder),
-            lte(todos.order, newOrder)
-          )
-        );
+        .where(and(gt(todos.order, oldOrder), lte(todos.order, newOrder)));
     } else {
       // Moving up
       await db
         .update(todos)
         .set({ order: sql`${todos.order} + 1` })
-        .where(
-          and(
-            gte(todos.order, newOrder),
-            lt(todos.order, oldOrder)
-          )
-        );
+        .where(and(gte(todos.order, newOrder), lt(todos.order, oldOrder)));
     }
 
     // Update the active item's order
@@ -173,7 +204,7 @@ export async function reorderTodos(activeId: number, overId: number) {
 
     // Normalize orders in a separate step
     const updatedTodos = await db.query.todos.findMany({
-      orderBy: (todos, { asc }) => [asc(todos.order)]
+      orderBy: (todos, { asc }) => [asc(todos.order)],
     });
 
     // Update all orders to be sequential
@@ -187,7 +218,7 @@ export async function reorderTodos(activeId: number, overId: number) {
     revalidatePath("/");
     return { success: true };
   } catch (error) {
-    console.error('Reorder error:', error);
+    console.error("Reorder error:", error);
     return { success: false, error: "Failed to reorder todos" };
   }
 }
