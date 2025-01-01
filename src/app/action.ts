@@ -5,16 +5,12 @@ import { todos } from "@/db/schema";
 import { revalidatePath } from "next/cache";
 import { eq, sql, and, gte, lt, gt, lte } from "drizzle-orm";
 import { NewTodoSchema } from "@/db/schema";
-
-// Export the state type
-export type TodoFormState = {
-  message: string;
-};
+import type { TodoActionState } from "@/types/todo";
 
 export async function createTodo(
-  prevState: { message: string },
+  prevState: TodoActionState,
   formData: FormData
-): Promise<TodoFormState> {
+): Promise<TodoActionState> {
   try {
     const title = formData.get("title") as string;
     const description = formData.get("description") as string;
@@ -26,7 +22,14 @@ export async function createTodo(
     });
 
     if (!validated.success) {
-      return { message: validated.error.errors[0].message };
+      return {
+        success: false,
+        message: "Please fix the errors in the form",
+        errors: {
+          title: validated.error.flatten().fieldErrors.title,
+          description: validated.error.flatten().fieldErrors.description,
+        },
+      };
     }
 
     // Get the current maximum order
@@ -45,12 +48,15 @@ export async function createTodo(
     });
 
     revalidatePath("/");
-    return { message: "Todo added" };
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      return { message: error.message };
-    }
-    return { message: "Failed to add todo" };
+    return {
+      success: true,
+      message: "Todo added successfully!",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Failed to add todo",
+    };
   }
 }
 

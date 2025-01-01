@@ -6,7 +6,6 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { TodoItem } from "./todo-item";
-import type { todos } from "@/db/schema";
 import { ScrollArea } from "./ui/scroll-area";
 import { reorderTodos } from "@/app/action";
 import { useState } from "react";
@@ -19,12 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-type Todo = typeof todos.$inferSelect;
-
-interface TodosDisplayProps {
-  allTodos: Todo[];
-}
+import { TodosDisplayProps } from "@/types/todo";
 
 export function TodosDisplay({ allTodos }: TodosDisplayProps) {
   const [open, setOpen] = useState(false);

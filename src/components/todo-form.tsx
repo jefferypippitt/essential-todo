@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
 import { useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,30 +8,22 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PlusIcon } from "lucide-react";
-import type { todos } from "@/db/schema";
 import { TodosDisplay } from "./todos-display";
 import { toast } from "sonner";
 import { createTodo } from "@/app/action";
-
-type Todo = typeof todos.$inferSelect;
-
-interface TodoFormProps extends React.ComponentProps<typeof Card> {
-  allTodos: Todo[];
-}
-
-// Submit Button Component with loading state
-function SubmitButton() {
-  const { pending } = useFormStatus();
-
-  return (
-    <Button type="submit" disabled={pending}>
-      {pending ? "Adding..." : "Add Todo"}
-    </Button>
-  );
-}
+import { TodoFormProps, TodoActionState } from "@/types/todo";
+import { cn } from "@/lib/utils";
 
 export function TodoForm({ allTodos }: TodoFormProps) {
-  const [state, formAction] = useActionState(createTodo, { message: "" });
+  const initialState: TodoActionState = {
+    success: false,
+    message: "",
+  };
+
+  const [state, formAction, isPending] = useActionState(
+    createTodo,
+    initialState
+  );
 
   useEffect(() => {
     if (state.message === "Todo added") {
@@ -61,11 +52,17 @@ export function TodoForm({ allTodos }: TodoFormProps) {
                 name="title"
                 onKeyDown={handleKeyDown}
                 placeholder="Enter tasks, ideas, notes, etc."
-                className="flex-1"
+                className={cn(
+                  "flex-1",
+                  state?.errors?.title && "border-destructive"
+                )}
+                aria-describedby="title-error"
               />
             </div>
-            {state.message && state.message !== "Todo added" && (
-              <p className="text-sm text-destructive px-12">{state.message}</p>
+            {state?.errors?.title && (
+              <p id="title-error" className="text-sm text-destructive px-12">
+                {state.errors.title[0]}
+              </p>
             )}
           </div>
           <div className="relative mb-4 mt-4">
@@ -74,15 +71,29 @@ export function TodoForm({ allTodos }: TodoFormProps) {
                 <Textarea
                   name="description"
                   placeholder="Add a description..."
-                  className="min-h-[100px] h-auto resize-none border-0 focus-visible:ring-0 overflow-hidden"
+                  className={cn(
+                    "min-h-[100px] h-auto resize-none border-0 focus-visible:ring-0 overflow-hidden",
+                    state?.errors?.description && "border-destructive"
+                  )}
+                  aria-describedby="description-error"
                 />
               </div>
             </ScrollArea>
+            {state?.errors?.description && (
+              <p
+                id="description-error"
+                className="text-sm text-destructive mt-2"
+              >
+                {state.errors.description[0]}
+              </p>
+            )}
           </div>
         </CardContent>
 
         <div className="flex justify-center items-center gap-4 pb-6">
-          <SubmitButton />
+          <Button type="submit" disabled={isPending}>
+            {isPending ? "Adding..." : "Add Todo"}
+          </Button>
           <div onClick={(e) => e.preventDefault()}>
             <TodosDisplay allTodos={allTodos} />
           </div>

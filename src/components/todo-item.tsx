@@ -22,14 +22,7 @@ import {
 import { Label } from "./ui/label";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-
-type TodoItemProps = {
-  id: number;
-  title: string;
-  completed: boolean | null;
-  description: string | null;
-  createdAt: Date | null;
-};
+import type { TodoItemProps } from "@/types/todo";
 
 export function TodoItem({
   id,
