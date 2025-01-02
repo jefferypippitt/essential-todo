@@ -1,6 +1,10 @@
-import type { todos } from "@/db/schema";
-
-export type Todo = typeof todos.$inferSelect;
+export type Todo = {
+  id: number;
+  title: string;
+  completed: boolean | null;
+  description: string | null;
+  createdAt: Date | null;
+};
 
 export interface TodoItemProps {
   id: number;
@@ -25,6 +29,7 @@ export type TodoFormState = {
 export interface TodoActionState {
   success: boolean;
   message: string;
+  warning?: boolean;
   errors?: {
     title?: string[];
     description?: string[];

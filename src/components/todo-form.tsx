@@ -26,12 +26,14 @@ export function TodoForm({ allTodos }: TodoFormProps) {
   );
 
   useEffect(() => {
-    if (state.message === "Todo added") {
-      toast.success("Todo created successfully");
-    } else if (state.message && state.message !== "Todo added") {
+    if (state.success) {
+      toast.success(state.message);
+    } else if (state.warning) {
+      toast.warning(state.message);
+    } else if (state.message) {
       toast.error(state.message);
     }
-  }, [state.message]);
+  }, [state]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {

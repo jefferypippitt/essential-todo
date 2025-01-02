@@ -6,16 +6,59 @@ import { revalidatePath } from "next/cache";
 import { eq, sql, and, gte, lt, gt, lte } from "drizzle-orm";
 import { NewTodoSchema } from "@/db/schema";
 import type { TodoActionState } from "@/types/todo";
+import arcjet, { shield, detectBot, fixedWindow, request } from '@arcjet/next';
+
+const aj = arcjet({
+  key: process.env.ARCJET_KEY!,
+  rules: [
+    shield({
+      mode: 'LIVE'
+    }),
+    detectBot({
+      mode: 'LIVE',
+      allow: []
+    }),
+    fixedWindow({
+      mode: 'LIVE',
+      window: '1m',
+      max: 5
+    })
+  ]
+});
 
 export async function createTodo(
   prevState: TodoActionState,
   formData: FormData
 ): Promise<TodoActionState> {
   try {
+    const req = await request();
+    const decision = await aj.protect(req);
+
+    if (decision.isDenied()) {
+      if (decision.reason.isRateLimit()) {
+        return {
+          success: false,
+          warning: true,
+          message: "You've reached the maximum attempts. Please wait a moment before trying again.",
+        };
+      }
+      if (decision.reason.isBot()) {
+        return {
+          success: false,
+          warning: true,
+          message: "Automated submissions have been detected and blocked.",
+        };
+      }
+      return {
+        success: false,
+        warning: true,
+        message: "Your request was blocked for security reasons.",
+      };
+    }
+
     const title = formData.get("title") as string;
     const description = formData.get("description") as string;
 
-    // Validate with Zod schema
     const validated = NewTodoSchema.safeParse({
       title: title?.trim(),
       description: description?.trim(),
@@ -32,7 +75,6 @@ export async function createTodo(
       };
     }
 
-    // Get the current maximum order
     const result = await db
       .select({
         maxOrder: sql<number>`COALESCE(MAX(${todos.order}), 0)`,
@@ -76,7 +118,7 @@ export async function toggleTodo(id: number) {
       .update(todos)
       .set({
         completed: !todo.completed,
-        order: todo.order, // Explicitly preserve the order
+        order: todo.order,
       })
       .where(eq(todos.id, id));
 
@@ -104,7 +146,6 @@ export async function deleteTodo(id: number) {
 
     await db.delete(todos).where(eq(todos.id, id));
 
-    // Update orders for remaining todos
     await db
       .update(todos)
       .set({ order: sql`${todos.order} - 1` })
@@ -133,7 +174,6 @@ export async function updateTodo(
       throw new Error("Missing required fields");
     }
 
-    // Validate the input
     const validated = NewTodoSchema.safeParse({
       title: title.toString().trim(),
       description: description?.toString().trim(),
@@ -187,33 +227,27 @@ export async function reorderTodos(activeId: number, overId: number) {
     const oldOrder = activeItem.order;
     const newOrder = overItem.order;
 
-    // Update orders without transaction
     if (oldOrder < newOrder) {
-      // Moving down
       await db
         .update(todos)
         .set({ order: sql`${todos.order} - 1` })
         .where(and(gt(todos.order, oldOrder), lte(todos.order, newOrder)));
     } else {
-      // Moving up
       await db
         .update(todos)
         .set({ order: sql`${todos.order} + 1` })
         .where(and(gte(todos.order, newOrder), lt(todos.order, oldOrder)));
     }
 
-    // Update the active item's order
     await db
       .update(todos)
       .set({ order: newOrder })
       .where(eq(todos.id, activeId));
 
-    // Normalize orders in a separate step
     const updatedTodos = await db.query.todos.findMany({
       orderBy: (todos, { asc }) => [asc(todos.order)],
     });
 
-    // Update all orders to be sequential
     for (const [index, todo] of updatedTodos.entries()) {
       await db
         .update(todos)

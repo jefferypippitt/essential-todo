@@ -17,7 +17,7 @@ export default async function Home() {
       </div>
       <div className="mt-8">
         <p className="text-xs text-muted-foreground font-semibold">
-          This is a todo app built with Next.js, DND Kit, Figma, Neon, Drizzle,
+          This is a todo app built with Next.js, DND Kit, Figma, Neon, Drizzle, Arcjet,
           and Nextjs {"<"}Forms{" />"}.
         </p>
         <div className="mt-1">
